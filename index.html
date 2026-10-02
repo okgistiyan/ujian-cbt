@@ -4,65 +4,52 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ujian CBT Anti-Nyontek</title>
-    <!-- Library Mammoth.js untuk membaca file Word -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; }
         .container { max-width: 800px; margin: 20px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         h1, h2 { color: #333; text-align: center; }
-        
-        /* Panel Guru */
         #guru-panel { border: 2px dashed #007bff; padding: 20px; border-radius: 8px; background: #f8fbff; margin-bottom: 20px; }
         .btn { background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%; margin-top: 10px; }
         .btn:hover { background-color: #0056b3; }
-        
-        /* Panel Siswa */
         #login-panel, #ujian-panel, #hasil-panel { display: none; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
         .form-group input, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        
-        /* Soal */
         .soal-card { border: 1px solid #eee; padding: 15px; margin-bottom: 20px; border-radius: 5px; background: #fafafa; }
         .soal-text { font-size: 16px; font-weight: bold; margin-bottom: 10px; white-space: pre-wrap;}
         .opsi-label { display: block; margin-bottom: 8px; cursor: pointer; padding: 5px; background: #fff; border: 1px solid #ddd; border-radius: 4px; }
         .opsi-label:hover { background: #f0f0f0; }
-        
-        /* Peringatan Anti Nyontek */
         #warning-box { display: none; background: #ffcccc; color: #cc0000; padding: 15px; border: 2px solid #cc0000; border-radius: 5px; text-align: center; font-weight: bold; margin-bottom: 20px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    
-    <!-- 1. PANEL GURU (Upload Soal) -->
     <div id="guru-panel">
         <h2>👨‍🏫 Panel Guru: Persiapan Ujian</h2>
         <p>Silakan upload file Microsoft Word (.docx atau .doc) berisi soal. <br>
-           <small><em>Catatan: Kop surat/judul akan diabaikan. Sistem baru akan mulai merekam soal saat mendeteksi teks "1." atau "1)". Jika tidak ada opsi A,B,C,D, otomatis menjadi soal Essay.</em></small>
+           <small><em>PENTING: Matikan fitur Auto-Numbering di Word. Ketik angka 1. dan A. B. C. secara manual agar bisa terbaca sistem.</em></small>
         </p>
         <input type="file" id="fileInput" accept=".docx, .doc" style="margin-bottom: 15px;">
         <div id="upload-status" style="color: green; font-weight: bold; margin-bottom:10px;"></div>
         <button class="btn" onclick="mulaiSesiUjian()">Simpan & Mulai Sesi Ujian Siswa</button>
     </div>
 
-    <!-- 2. PANEL LOGIN SISWA -->
     <div id="login-panel">
         <h2>Selamat Datang di Portal Ujian</h2>
         <p style="text-align:center; color:red; font-weight:bold;">Perhatian: Sistem Anti-Nyontek Aktif!</p>
         <div class="form-group">
             <label>Nama Lengkap</label>
-            <input type="text" id="namaSiswa" placeholder="Masukkan nama Anda..." required>
+            <input type="text" id="namaSiswa" required>
         </div>
         <div class="form-group">
-            <label>Nomor Induk / Kelas</label>
-            <input type="text" id="kelasSiswa" placeholder="Contoh: 12345 / XII-IPA-1" required>
+            <label>Kelas</label>
+            <input type="text" id="kelasSiswa" required>
         </div>
         <button class="btn" onclick="masukUjian()">Mulai Ujian</button>
     </div>
 
-    <!-- 3. PANEL UJIAN -->
     <div id="ujian-panel">
         <div id="warning-box">PERINGATAN! Anda terdeteksi keluar dari layar ujian. Jangan membuka tab lain!</div>
         <h2>Soal Ujian</h2>
@@ -72,30 +59,24 @@
         <button class="btn" style="background-color: #28a745;" onclick="kumpulkanUjian()">Kumpulkan Jawaban</button>
     </div>
 
-    <!-- 4. PANEL HASIL -->
     <div id="hasil-panel">
         <h2>Ujian Selesai!</h2>
         <p>Terima kasih, <strong><span id="hasilNama"></span></strong>.</p>
         <p>Jawaban Anda telah berhasil direkam ke dalam sistem.</p>
-        <p><em>(Status Nilai: Menunggu Koreksi / Penilaian Guru)</em></p>
     </div>
-
 </div>
 
 <script>
-    // Variabel Global
     let soalUjian = [];
     let pelanggaran = 0;
     const MAX_PELANGGARAN = 3;
 
-    // ----- LOGIKA MEMBACA FILE WORD -----
     document.getElementById('fileInput').addEventListener('change', function(event) {
         const file = event.target.files[0];
         if (!file) return;
 
-        // Peringatan jika file berekstensi .doc
         if(file.name.endsWith('.doc')) {
-            alert("Perhatian: Anda mengunggah file berekstensi .doc (format lama). Jika terjadi error/soal tidak terbaca, mohon buka file tersebut di Microsoft Word, lalu pilih 'Save As' menjadi file '.docx', dan upload ulang file .docx tersebut.");
+            alert("Saran: Jika file .doc gagal terbaca, mohon Save As menjadi .docx di Microsoft Word terlebih dahulu.");
         }
 
         const reader = new FileReader();
@@ -108,7 +89,7 @@
                     parsingSoalWord(text);
                 })
                 .catch(function(err) {
-                    alert("Gagal membaca file. Pastikan file Anda adalah .docx (Bukan .doc format lama) dan tidak dipassword.\nError detail: " + err.message);
+                    alert("Gagal membaca file: " + err.message);
                 });
         };
         reader.readAsArrayBuffer(file);
@@ -118,69 +99,56 @@
         const lines = text.split('\n');
         soalUjian = [];
         let currentSoal = null;
-        let isReadingStarted = false; // Flag untuk mengabaikan judul/kop surat
+        let isReadingStarted = false; 
 
         lines.forEach(line => {
-            let cleanLine = line.trim();
-            if (!cleanLine) return; // Lewati baris kosong
+            // Membersihkan karakter gaib/tersembunyi bawaan Word dan spasi berlebih
+            let cleanLine = line.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+            if (!cleanLine) return; 
 
-            // 1. Cek apakah ini awal mula membaca soal (mencari angka "1." atau "1)")
             if (!isReadingStarted) {
-                // Regex: Mencari "1." atau "1)", boleh ada spasi
-                let startMatch = cleanLine.match(/^1[\.\)]\s*(.*)/i);
+                // Regex dibuat lebih toleran terhadap spasi sebelum angka 1
+                let startMatch = cleanLine.match(/^\s*1[\.\)]\s*(.*)/i);
                 if (startMatch) {
-                    isReadingStarted = true; // Mulai merekam
-                    currentSoal = {
-                        pertanyaan: cleanLine,
-                        tipe: 'essay',
-                        opsi: []
-                    };
+                    isReadingStarted = true;
+                    currentSoal = { pertanyaan: cleanLine, tipe: 'essay', opsi: [] };
                 }
-                return; // Jika belum ketemu angka 1, skip baris ini (mengabaikan judul)
+                return; 
             }
 
-            // 2. Jika sudah mulai membaca (isReadingStarted = true)
-            // Deteksi Soal Baru (Angka diikuti titik/kurung)
-            let matchSoal = cleanLine.match(/^(\d+)[\.\)]\s*(.*)/i);
+            let matchSoal = cleanLine.match(/^\s*(\d+)[\.\)]\s*(.*)/i);
             if (matchSoal) {
-                if (currentSoal) {
-                    soalUjian.push(currentSoal); // Simpan soal sebelumnya
-                }
-                currentSoal = {
-                    pertanyaan: cleanLine,
-                    tipe: 'essay', // Default essay, akan berubah jika menemukan abjad
-                    opsi: []
-                };
+                if (currentSoal) soalUjian.push(currentSoal);
+                currentSoal = { pertanyaan: cleanLine, tipe: 'essay', opsi: [] };
                 return;
             }
 
-            // Deteksi Opsi Jawaban (Huruf a-e diikuti titik/kurung)
-            let matchOpsi = cleanLine.match(/^([a-eA-E])[\.\)]\s*(.*)/i);
+            let matchOpsi = cleanLine.match(/^\s*([a-eA-E])[\.\)]\s*(.*)/i);
             if (matchOpsi && currentSoal) {
-                currentSoal.tipe = 'pg'; // Ubah tipe jadi Pilihan Ganda
+                currentSoal.tipe = 'pg';
                 currentSoal.opsi.push(cleanLine);
                 return;
             }
 
-            // Jika bukan soal baru dan bukan opsi, gabungkan ke teks pertanyaan saat ini
             if (currentSoal) {
-                // Ini berguna jika soal memiliki paragraf panjang yang terpotong baris baru
                 currentSoal.pertanyaan += "\n" + cleanLine; 
             }
         });
 
-        // Masukkan soal terakhir ke dalam array
-        if (currentSoal) {
-            soalUjian.push(currentSoal);
-        }
+        if (currentSoal) soalUjian.push(currentSoal);
 
-        document.getElementById('upload-status').innerText = `Berhasil memuat ${soalUjian.length} soal dari dokumen.`;
+        // Validasi Error yang lebih jelas
+        if (soalUjian.length === 0) {
+            alert("TIDAK ADA SOAL TERDETEKSI!\n\nKemungkinan Penyebab:\n1. Anda menggunakan fitur 'Auto-Numbering' / Penomoran Otomatis. Mohon matikan di Word dan KETIK MANUAL angka '1.'\n2. Format angka tidak menggunakan titik atau kurung tutup.");
+            document.getElementById('upload-status').innerText = "";
+        } else {
+            document.getElementById('upload-status').innerText = `Berhasil memuat ${soalUjian.length} soal.`;
+        }
     }
 
-    // ----- LOGIKA ANTARMUKA & UJIAN -----
     function mulaiSesiUjian() {
         if(soalUjian.length === 0) {
-            alert("Anda belum mengupload soal atau soal gagal dibaca. Pastikan format wordnya benar (diawali angka 1. lalu opsi a., b., c.).");
+            alert("Upload soal gagal atau kosong.");
             return;
         }
         document.getElementById('guru-panel').style.display = 'none';
@@ -190,15 +158,10 @@
     function masukUjian() {
         let nama = document.getElementById('namaSiswa').value;
         let kelas = document.getElementById('kelasSiswa').value;
-        
-        if(!nama || !kelas) {
-            alert("Harap isi Nama dan Kelas terlebih dahulu!");
-            return;
-        }
+        if(!nama || !kelas) return alert("Isi Nama dan Kelas!");
 
         document.getElementById('displayNama').innerText = nama;
         document.getElementById('displayKelas').innerText = kelas;
-        
         document.getElementById('login-panel').style.display = 'none';
         document.getElementById('ujian-panel').style.display = 'block';
         
@@ -208,8 +171,7 @@
 
     function renderSoal() {
         const container = document.getElementById('daftar-soal');
-        container.innerHTML = ''; // Kosongkan dulu
-
+        container.innerHTML = ''; 
         soalUjian.forEach((soal, index) => {
             let soalDiv = document.createElement('div');
             soalDiv.className = 'soal-card';
@@ -220,78 +182,53 @@
             soalDiv.appendChild(pert);
 
             if(soal.tipe === 'pg') {
-                // Render Pilihan Ganda
-                soal.opsi.forEach((opsiText, i) => {
+                soal.opsi.forEach((opsiText) => {
                     let label = document.createElement('label');
                     label.className = 'opsi-label';
-                    
                     let input = document.createElement('input');
                     input.type = 'radio';
                     input.name = 'soal_' + index;
                     input.value = opsiText;
-                    
                     label.appendChild(input);
                     label.appendChild(document.createTextNode(" " + opsiText));
                     soalDiv.appendChild(label);
                 });
             } else {
-                // Render Essay
                 let textarea = document.createElement('textarea');
                 textarea.name = 'soal_' + index;
                 textarea.rows = 4;
-                textarea.placeholder = "Ketik jawaban essay Anda di sini...";
                 textarea.style.width = "100%";
                 soalDiv.appendChild(textarea);
             }
-
             container.appendChild(soalDiv);
         });
     }
 
-    // ----- FITUR ANTI-NYONTEK -----
     function aktifkanAntiNyontek() {
-        // 1. Cegah Klik Kanan
         document.addEventListener('contextmenu', event => event.preventDefault());
-        
-        // 2. Cegah Copy-Paste
         document.addEventListener('copy', event => event.preventDefault());
         document.addEventListener('paste', event => event.preventDefault());
 
-        // 3. Deteksi Tab/Jendela Berubah (Siswa membuka Google / Tab lain)
         document.addEventListener("visibilitychange", () => {
             if (document.hidden) {
                 pelanggaran++;
-                let sisa = MAX_PELANGGARAN - pelanggaran;
                 let warning = document.getElementById('warning-box');
                 warning.style.display = 'block';
-                warning.innerText = `PERINGATAN! Anda terdeteksi keluar dari layar ujian. (Peringatan ${pelanggaran}/${MAX_PELANGGARAN})`;
-                
+                warning.innerText = `PERINGATAN! Keluar layar ujian! (Peringatan ${pelanggaran}/${MAX_PELANGGARAN})`;
                 if (pelanggaran >= MAX_PELANGGARAN) {
-                    alert("ANDA DIDISKUALIFIKASI KARENA TERDETEKSI MENYONTEK/KELUAR DARI HALAMAN UJIAN BERKALI-KALI.");
-                    kumpulkanUjian(true); // Kumpulkan paksa
+                    alert("DIDISKUALIFIKASI KARENA MENYONTEK!");
+                    kumpulkanUjian(true); 
                 }
-                
-                // Sembunyikan peringatan setelah 5 detik
-                setTimeout(() => {
-                    warning.style.display = 'none';
-                }, 5000);
+                setTimeout(() => warning.style.display = 'none', 5000);
             }
         });
     }
 
     function kumpulkanUjian(diskualifikasi = false) {
-        if(!diskualifikasi) {
-            let konfirm = confirm("Apakah Anda yakin ingin mengumpulkan jawaban?");
-            if(!konfirm) return;
-        }
-
+        if(!diskualifikasi && !confirm("Yakin ingin mengumpulkan?")) return;
         document.getElementById('ujian-panel').style.display = 'none';
         document.getElementById('hasil-panel').style.display = 'block';
         document.getElementById('hasilNama').innerText = document.getElementById('displayNama').innerText;
-        
-        if(diskualifikasi) {
-            document.getElementById('hasil-panel').innerHTML += "<p style='color:red; font-weight:bold;'>STATUS: DIDISKUALIFIKASI (Indikasi Kecurangan)</p>";
-        }
     }
 </script>
 </body>
