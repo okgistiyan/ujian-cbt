@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Ujian CBT - Anti Cheat & Import Word</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Library Mammoth.js untuk membaca file .docx di browser -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            user-select: none;
+        }
+        
+        .hidden-section {
+            display: none !important;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+
+        textarea {
+            user-select: text; /* Izinkan mengetik untuk essay */
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- PANEL GURU: SETUP & IMPORT SOAL -->
+    <div id="setup-screen" class="glass-panel max-w-3xl w-full p-8 rounded-2xl transition-all duration-300">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">Panel Guru: Persiapan Ujian</h1>
+            <span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-semibold">Mode Setup</span>
+        </div>
+        
+        <div class="grid md:grid-cols-2 gap-6">
+            <!-- Opsi 1: Upload Word -->
+            <div class="border-2 border-dashed border-blue-300 bg-blue-50 p-6 rounded-xl text-center">
+                <svg class="w-12 h-12 text-blue-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                <h3 class="font-bold text-blue-800 mb-2">Import Soal dari Word (.docx)</h3>
+                <p class="text-xs text-blue-600 mb-4 text-left">
+                    <b>Format:</b><br>
+                    1. Soal nomor satu (diawali angka & titik)<br>
+                    A. Opsi pertama (diawali huruf & titik/kurung)<br>
+                    B. Opsi kedua<br>
+                    2. Soal essay (tidak perlu opsi di bawahnya)
+                </p>
+                <input type="file" id="upload-docx" accept=".docx" class="hidden">
+                <label for="upload-docx" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded cursor-pointer inline-block transition-colors text-sm font-semibold">
+                    Pilih File Word
+                </label>
+                <p id="upload-status" class="text-sm mt-3 text-gray-600 font-medium"></p>
+            </div>
+
+            <!-- Opsi 2: Default -->
+            <div class="border-2 border-gray-200 bg-gray-50 p-6 rounded-xl text-center flex flex-col justify-center">
+                <svg class="w-12 h-12 text-gray-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                <h3 class="font-bold text-gray-800 mb-2">Gunakan Soal Bawaan</h3>
+                <p class="text-xs text-gray-500 mb-4">Gunakan 5 soal contoh yang sudah tertanam di dalam sistem.</p>
+                <button id="btn-use-default" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded transition-colors text-sm font-semibold">
+                    Muat Soal Bawaan
+                </button>
+            </div>
+        </div>
+
+        <div id="preview-container" class="mt-6 hidden-section border-t pt-4">
+            <h3 class="font-bold text-gray-700 mb-2">Preview Soal (<span id="preview-count">0</span> soal terdeteksi):</h3>
+            <div id="preview-list" class="max-h-40 overflow-y-auto text-sm text-gray-600 bg-white p-3 border rounded mb-4 space-y-2"></div>
+            
+            <button id="btn-goto-start" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-lg transition-transform transform hover:scale-105">
+                Kunci Soal & Masuk Halaman Siswa
+            </button>
+        </div>
+    </div>
+
+    <!-- HALAMAN AWAL SISWA -->
+    <div id="start-screen" class="hidden-section glass-panel max-w-2xl w-full p-8 rounded-2xl text-center transition-all duration-300">
+        <div class="mb-6 flex justify-center">
+            <svg class="w-16 h-16 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <h1 class="text-3xl font-bold text-gray-800 mb-4">Ujian Tengah Semester</h1>
+        <p class="text-gray-600 mb-6">Mata Pelajaran: Ilmu Pengetahuan Umum<br>Waktu Ujian: 5 Menit</p>
+        
+        <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-8 text-left rounded-r-lg">
+            <h3 class="text-red-700 font-bold mb-2">Peraturan Ujian:</h3>
+            <ul class="list-disc list-inside text-red-600 text-sm space-y-1">
+                <li>Ujian akan berjalan dalam mode <b>Layar Penuh (Fullscreen)</b>.</li>
+                <li>Dilarang keluar dari mode layar penuh atau berpindah tab.</li>
+                <li>Fungsi Klik Kanan, Copy, Paste, dan Shortcut Keyboard dinonaktifkan.</li>
+                <li>Pelanggaran lebih dari <b>3 kali</b> akan membuat ujian otomatis dihentikan.</li>
+            </ul>
+        </div>
+
+        <button id="btn-start-exam" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105">
+            Mulai Ujian Sekarang
+        </button>
+    </div>
+
+    <!-- HALAMAN UJIAN (QUIZ) -->
+    <div id="quiz-screen" class="hidden-section glass-panel max-w-4xl w-full p-6 md:p-8 rounded-2xl flex flex-col h-[90vh] max-h-[800px]">
+        <div class="flex justify-between items-center border-b pb-4 mb-6">
+            <div>
+                <h2 class="text-xl font-bold text-gray-800">Soal <span id="current-question-num">1</span> / <span id="total-questions">5</span></h2>
+                <span id="question-badge" class="inline-block mt-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded">Pilihan Ganda</span>
+                <p class="text-sm text-red-500 font-semibold mt-1">Peringatan Cheat: <span id="warning-count">0</span>/3</p>
+            </div>
+            <div class="text-right">
+                <div class="text-sm text-gray-500 mb-1">Sisa Waktu</div>
+                <div id="timer-display" class="text-2xl font-bold text-blue-600 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">05:00</div>
+            </div>
+        </div>
+
+        <div class="flex-grow overflow-y-auto pr-2">
+            <h3 id="question-text" class="text-lg md:text-xl font-semibold text-gray-800 mb-6 leading-relaxed whitespace-pre-wrap">Memuat soal...</h3>
+            
+            <!-- Kontainer untuk Pilihan Ganda ATAU Essay -->
+            <div id="answer-container" class="space-y-4"></div>
+        </div>
+
+        <div class="border-t pt-6 mt-4 flex justify-between items-center">
+            <button id="btn-prev" class="px-6 py-2 border-2 border-gray-300 text-gray-600 font-semibold rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                Sebelumnya
+            </button>
+            <button id="btn-next" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
+                Selanjutnya
+            </button>
+            <button id="btn-submit" class="hidden px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors shadow-lg">
+                Selesai & Kumpulkan
+            </button>
+        </div>
+    </div>
+
+    <!-- HALAMAN HASIL -->
+    <div id="result-screen" class="hidden-section glass-panel max-w-2xl w-full p-8 rounded-2xl text-center">
+        <div class="mb-6 flex justify-center">
+            <svg class="w-20 h-20 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Ujian Selesai!</h1>
+        <p id="result-message" class="text-gray-600 mb-8">Terima kasih telah mengikuti ujian.</p>
+        
+        <div id="score-container" class="bg-gray-50 rounded-xl p-6 mb-8 border">
+            <p class="text-gray-500 text-sm uppercase tracking-wider mb-2">Skor Anda (Khusus Pilihan Ganda Default)</p>
+            <div id="final-score" class="text-5xl font-black text-blue-600">0</div>
+            <p class="text-xs text-gray-400 mt-2">*Soal essay/impor memerlukan penilaian manual oleh guru.</p>
+        </div>
+
+        <button onclick="location.reload()" class="bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-6 rounded-lg transition-colors">
+            Kembali ke Beranda
+        </button>
+    </div>
+
+    <!-- MODAL PERINGATAN -->
+    <div id="warning-modal" class="hidden-section fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+            <div class="flex items-center justify-center mb-4 text-red-600">
+                <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            </div>
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-2">PERINGATAN!</h2>
+            <p id="warning-text" class="text-center text-gray-600 mb-6">Anda terdeteksi melakukan tindakan yang tidak diizinkan.</p>
+            <div class="bg-red-50 p-4 rounded-lg mb-6">
+                <p class="text-center text-red-700 font-semibold">Peringatan ke: <span id="modal-warning-count" class="text-xl">1</span> / 3</p>
+                <p class="text-center text-xs text-red-500 mt-2">Jika mencapai 3 kali, ujian akan dihentikan otomatis.</p>
+            </div>
+            <button id="btn-resume" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">
+                Saya Mengerti, Lanjutkan Ujian
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Data Default
+        const defaultQuestions = [
+            { question: "Apa kepanjangan dari HTML?", options: ["Hyper Text Markup Language", "Hyperlinks Text Language", "Home Tool Markup Language", "Hyper Tool Language"], type: "multiple_choice", answer: 0 },
+            { question: "Siapa penemu World Wide Web (WWW)?", options: ["Steve Jobs", "Bill Gates", "Tim Berners-Lee", "Mark Zuckerberg"], type: "multiple_choice", answer: 2 },
+            { question: "Jelaskan secara singkat apa itu kecerdasan buatan (AI) menurut pemahaman Anda!", options: [], type: "essay", answer: null }
+        ];
+
+        let questions = [];
+        let currentQuestionIndex = 0;
+        let userAnswers = []; // Akan menyimpan index (untuk PG) atau string (untuk Essay)
+        let isScorable = false; // True jika pakai soal default yang ada kunci jawabannya
+
+        // State Aplikasi
+        let timeRemaining = 5 * 60;
+        let timerInterval;
+        let isTestRunning = false;
+        let warningCount = 0;
+        const MAX_WARNINGS = 3;
+        let cheatCooldown = false;
+
+        // Elemen DOM
+        const setupScreen = document.getElementById('setup-screen');
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const warningModal = document.getElementById('warning-modal');
+        
+        const uploadInput = document.getElementById('upload-docx');
+        const btnUseDefault = document.getElementById('btn-use-default');
+        const btnGotoStart = document.getElementById('btn-goto-start');
+        const btnStartExam = document.getElementById('btn-start-exam');
+        
+        // ==========================================
+        // FITUR GURU: PARSING WORD FILE (.docx)
+        // ==========================================
+        uploadInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            document.getElementById('upload-status').innerText = "Memproses file...";
+
+            const reader = new FileReader();
+            reader.onload = function(loadEvent) {
+                const arrayBuffer = loadEvent.target.result;
+                
+                // Gunakan Mammoth.js untuk ekstrak raw text
+                mammoth.extractRawText({arrayBuffer: arrayBuffer})
+                    .then(function(result){
+                        const text = result.value;
+                        parseQuestionsFromText(text);
+                    })
+                    .catch(function(err){
+                        console.error(err);
+                        alert("Gagal membaca file Word. Pastikan formatnya .docx valid.");
+                        document.getElementById('upload-status').innerText = "Gagal memproses.";
+                    });
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function parseQuestionsFromText(text) {
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            let parsedQuestions = [];
+            let currentQ = null;
+
+            // Regex untuk mendeteksi soal: mulai dengan angka lalu titik/kurung tutup (ex: 1. atau 1) )
+            const qRegex = /^(\d+)[\.\)]\s*(.*)/i;
+            // Regex untuk mendeteksi opsi: mulai dengan huruf a-e lalu titik/kurung tutup (ex: A. atau a) )
+            const optRegex = /^([a-e])[\.\)]\s*(.*)/i;
+
+            for (let line of lines) {
+                let qMatch = line.match(qRegex);
+                let optMatch = line.match(optRegex);
+
+                if (qMatch) {
+                    if (currentQ) parsedQuestions.push(currentQ);
+                    currentQ = {
+                        question: qMatch[2],
+                        options: [],
+                        type: 'essay',
+                        answer: null // Kunci tidak terdeteksi otomatis dari Word
+                    };
+                } else if (optMatch && currentQ) {
+                    currentQ.options.push(optMatch[2]);
+                    currentQ.type = 'multiple_choice';
+                } else if (currentQ) {
+                    // Gabungkan baris baru ke soal jika itu soal multi-baris
+                    currentQ.question += '\n' + line;
+                }
+            }
+            if (currentQ) parsedQuestions.push(currentQ);
+
+            if (parsedQuestions.length > 0) {
+                questions = parsedQuestions;
+                isScorable = false; // Soal import belum punya sistem kunci jawaban otomatis
+                showPreview();
+            } else {
+                alert("Tidak ada soal yang terdeteksi. Pastikan format Word diawali '1. ' untuk soal.");
+                document.getElementById('upload-status').innerText = "Format tidak dikenali.";
+            }
+        }
+
+        btnUseDefault.addEventListener('click', () => {
+            questions = defaultQuestions;
+            isScorable = true;
+            showPreview();
+        });
+
+        function showPreview() {
+            document.getElementById('preview-container').classList.remove('hidden-section');
+            document.getElementById('preview-count').innerText = questions.length;
+            document.getElementById('upload-status').innerText = "Berhasil dimuat!";
+            
+            const list = document.getElementById('preview-list');
+            list.innerHTML = '';
+            questions.forEach((q, i) => {
+                let typeText = q.type === 'multiple_choice' ? '(PG)' : '(Essay)';
+                list.innerHTML += `<div><b>${i+1}.</b> ${q.question.substring(0, 50)}... <i>${typeText}</i></div>`;
+            });
+        }
+
+        // Lanjut ke Layar Siswa
+        btnGotoStart.addEventListener('click', () => {
+            userAnswers = new Array(questions.length).fill(null);
+            setupScreen.classList.add('hidden-section');
+            startScreen.classList.remove('hidden-section');
+        });
+
+
+        // ==========================================
+        // FITUR SISWA: ENGINE CBT & ANTI-CHEAT
+        // ==========================================
+        
+        btnStartExam.addEventListener('click', async () => {
+            try {
+                await document.documentElement.requestFullscreen();
+                startScreen.classList.add('hidden-section');
+                quizScreen.classList.remove('hidden-section');
+                
+                isTestRunning = true;
+                startTimer();
+                renderQuestion();
+                updateNavigationButtons();
+            } catch (err) {
+                alert("Gagal mengaktifkan Fullscreen. Browser Anda menolak permintaan ini.");
+            }
+        });
+
+        function renderQuestion() {
+            const q = questions[currentQuestionIndex];
+            document.getElementById('current-question-num').innerText = currentQuestionIndex + 1;
+            document.getElementById('total-questions').innerText = questions.length;
+            document.getElementById('question-text').innerText = q.question;
+            
+            const badge = document.getElementById('question-badge');
+            badge.innerText = q.type === 'multiple_choice' ? 'Pilihan Ganda' : 'Essay';
+            badge.className = q.type === 'multiple_choice' 
+                ? 'inline-block mt-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded'
+                : 'inline-block mt-1 px-2 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded';
+
+            const container = document.getElementById('answer-container');
+            container.innerHTML = '';
+
+            if (q.type === 'multiple_choice') {
+                q.options.forEach((opt, index) => {
+                    const isSelected = userAnswers[currentQuestionIndex] === index;
+                    const div = document.createElement('div');
+                    div.className = `p-4 border-2 rounded-xl cursor-pointer transition-all ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'}`;
+                    div.onclick = () => {
+                        userAnswers[currentQuestionIndex] = index;
+                        renderQuestion();
+                    };
+                    div.innerHTML = `
+                        <div class="flex items-center">
+                            <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${isSelected ? 'border-blue-500' : 'border-gray-400'}">
+                                ${isSelected ? '<div class="w-3 h-3 bg-blue-500 rounded-full"></div>' : ''}
+                            </div>
+                            <span class="${isSelected ? 'font-semibold text-blue-700' : 'text-gray-700'}">${opt}</span>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+            } else if (q.type === 'essay') {
+                const textarea = document.createElement('textarea');
+                textarea.className = "w-full h-40 p-4 border-2 border-gray-300 rounded-xl focus:border-blue-500 focus:ring-0 outline-none resize-none transition-colors";
+                textarea.placeholder = "Ketik jawaban essay Anda di sini...";
+                textarea.value = userAnswers[currentQuestionIndex] || "";
+                
+                // Matikan copy-paste khusus dalam textarea
+                textarea.onpaste = e => e.preventDefault();
+                textarea.oncopy = e => e.preventDefault();
+                
+                textarea.oninput = (e) => {
+                    userAnswers[currentQuestionIndex] = e.target.value;
+                };
+                container.appendChild(textarea);
+            }
+        }
+
+        document.getElementById('btn-next').addEventListener('click', () => {
+            if (currentQuestionIndex < questions.length - 1) {
+                currentQuestionIndex++;
+                renderQuestion();
+                updateNavigationButtons();
+            }
+        });
+
+        document.getElementById('btn-prev').addEventListener('click', () => {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                renderQuestion();
+                updateNavigationButtons();
+            }
+        });
+
+        function updateNavigationButtons() {
+            document.getElementById('btn-prev').disabled = currentQuestionIndex === 0;
+            
+            if (currentQuestionIndex === questions.length - 1) {
+                document.getElementById('btn-next').classList.add('hidden');
+                document.getElementById('btn-submit').classList.remove('hidden');
+            } else {
+                document.getElementById('btn-next').classList.remove('hidden');
+                document.getElementById('btn-submit').classList.add('hidden');
+            }
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timeRemaining--;
+                const m = Math.floor(timeRemaining / 60).toString().padStart(2, '0');
+                const s = (timeRemaining % 60).toString().padStart(2, '0');
+                
+                const timerEl = document.getElementById('timer-display');
+                timerEl.innerText = `${m}:${s}`;
+                
+                if (timeRemaining <= 60) {
+                    timerEl.classList.replace('text-blue-600', 'text-red-600');
+                    timerEl.classList.replace('bg-blue-50', 'bg-red-50');
+                    timerEl.classList.replace('border-blue-200', 'border-red-200');
+                }
+                if (timeRemaining <= 0) finishTest("Waktu Habis!");
+            }, 1000);
+        }
+
+        document.getElementById('btn-submit').addEventListener('click', () => {
+            if(confirm("Apakah Anda yakin ingin mengumpulkan jawaban?")) {
+                finishTest("Anda telah menyelesaikan ujian.");
+            }
+        });
+
+        function finishTest(message = "Ujian Selesai", isDisqualified = false) {
+            isTestRunning = false;
+            clearInterval(timerInterval);
+            
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(err => console.log(err));
+            }
+
+            if (isDisqualified) {
+                document.getElementById('result-message').innerHTML = `<span class="text-red-600 font-bold">DISKUALIFIKASI!</span><br>Anda melanggar aturan lebih dari 3 kali.`;
+                document.getElementById('final-score').innerText = "0";
+                document.getElementById('final-score').classList.replace('text-blue-600', 'text-red-600');
+            } else {
+                document.getElementById('result-message').innerText = message;
+                
+                if (isScorable) {
+                    let score = 0;
+                    let mcqCount = questions.filter(q => q.type === 'multiple_choice').length;
+                    
+                    if (mcqCount > 0) {
+                        questions.forEach((q, i) => {
+                            if (q.type === 'multiple_choice' && userAnswers[i] === q.answer) {
+                                score += (100 / mcqCount);
+                            }
+                        });
+                        document.getElementById('final-score').innerText = Math.round(score);
+                    }
+                } else {
+                    document.getElementById('final-score').innerText = "-";
+                    document.getElementById('final-score').classList.add('text-3xl');
+                    document.getElementById('final-score').innerHTML = "<span class='text-xl text-gray-500'>Terekam (Menunggu Penilaian Guru)</span>";
+                }
+            }
+
+            quizScreen.classList.add('hidden-section');
+            warningModal.classList.add('hidden-section');
+            resultScreen.classList.remove('hidden-section');
+            
+            // Console log untuk simulasi pengiriman data ke server/database
+            console.log("Data Ujian Disubmit:", { answers: userAnswers, disqualified: isDisqualified });
+        }
+
+        // ==========================================
+        // FITUR ANTI-CHEAT SYSTEM
+        // ==========================================
+        function triggerWarning(reason) {
+            if (!isTestRunning || cheatCooldown) return;
+            
+            cheatCooldown = true;
+            warningCount++;
+            
+            document.getElementById('warning-count').innerText = warningCount;
+            document.getElementById('modal-warning-count').innerText = warningCount;
+            document.getElementById('warning-text').innerText = reason;
+            
+            if (warningCount >= MAX_WARNINGS) {
+                finishTest("Diskualifikasi", true);
+            } else {
+                warningModal.classList.remove('hidden-section');
+            }
+            setTimeout(() => { cheatCooldown = false; }, 2000);
+        }
+
+        document.getElementById('btn-resume').addEventListener('click', async () => {
+            warningModal.classList.add('hidden-section');
+            try {
+                if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+            } catch (e) {
+                console.log("Fullscreen wait");
+            }
+        });
+
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && isTestRunning && warningCount < MAX_WARNINGS) {
+                triggerWarning("Anda terdeteksi keluar dari layar penuh (Fullscreen)!");
+            }
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) triggerWarning("Jangan berpindah tab browser!");
+        });
+
+        window.addEventListener('blur', () => {
+            triggerWarning("Jendela kehilangan fokus! Jangan buka aplikasi lain.");
+        });
+
+        document.addEventListener('contextmenu', e => { if (isTestRunning) e.preventDefault(); });
+        
+        document.addEventListener('keydown', e => {
+            if (!isTestRunning) return;
+            // Blokir F12, Ctrl+C, Ctrl+V dll
+            if (e.key === 'F12' || e.keyCode === 123) { e.preventDefault(); triggerWarning("Tombol dilarang!"); }
+            if (e.ctrlKey || e.metaKey) {
+                const k = e.key.toLowerCase();
+                if (['c','v','x','u'].includes(k)) { e.preventDefault(); }
+                if (e.shiftKey && ['i','j','c'].includes(k)) { e.preventDefault(); triggerWarning("Mode Developer Dilarang!"); }
+            }
+        });
+    </script>
+</body>
+</html>
